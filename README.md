@@ -15,7 +15,4 @@ THE FILES
 - getDataW and gen_synthetic_data_new: files to generate synthetic data (based on code by Gaetan Rensonnet at UCLouvain and EPFL)
 
 THE DATA: 
-In the python files, I used the data from large dictionnaries or generated it myself with help functions 
-Since the dictionary is very large, I tried to put only the data that is needed in some pickle files 
-(these are the ones used in the notebooks).
-Unfortunately even the pickle files don't fit on this github.
+In the python files, I used the data from large dictionnaries or generated it myself with help functions.  Since the dictionary is very large, I tried to put only the data that is needed in some pickle files (these are the ones used in the notebooks). Unfortunately even the pickle files don't fit on this github.
