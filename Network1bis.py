@@ -5,13 +5,11 @@ Created on Sun Nov 15 11:23:10 2020
 
 @author: louiseadam
 
-NW1 - working
+NW1 
 """
 
-import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
-#import glob
 import os
 import sys
 
@@ -32,6 +30,7 @@ if path_to_utils not in sys.path:
 import mf_utils as util
 import pickle
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+import time
 
 from sklearn.metrics import mean_absolute_error
 from sklearn.preprocessing import StandardScaler
@@ -50,17 +49,17 @@ num_fasc = 2
 M0 = 500
 num_atoms = 782
 
-filename = 'ID_noisy_data' 
+filename = 'ID_noisy_data_big' 
 IDs = pickle.load(open(filename, 'rb'))
 
-filename = 'nus_data' 
+filename = 'nus_data_big' 
 nus = pickle.load(open(filename, 'rb'))
 
 if use_noise:
-    filename = 'dw_noisy_data'
+    filename = 'dw_noisy_data_big'
     data = pickle.load(open(filename, 'rb'))
 else:
-    filename = 'dw_image_data'
+    filename = 'dw_image_data_big'
     data = pickle.load(open(filename, 'rb'))
 
 
@@ -73,8 +72,8 @@ print('num_sample', num_sample)
 params1 = {
     #Training parameters
     "num_samples": num_sample,
-     "batch_size": 500,  
-     "num_epochs": 15,
+     "batch_size": 250,  
+     "num_epochs": 30,
      
      #NW2
      "num_h1": 250,
@@ -84,8 +83,8 @@ params1 = {
      "num_h5": 50,
      
      #other
-     #"learning_rate": 0.001,
-     "learning_rate": hp.choice("learningrate", [0.0005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02]),
+     "learning_rate": 0.0005,
+     #"learning_rate": hp.choice("learningrate", [0.0005, 0.00075, 0.001, 0.00125, 0.0015, 0.00175, 0.002]),
      "dropout": 0.2
      #"dropout": hp.uniform("dropout", 0, 0.4)
      #hp.choice(hsjdkfhs, )
@@ -123,15 +122,22 @@ x_valid = torch.transpose(x_valid, 0, 1)
 print("--- Taking microstructural properties of fascicles ---")
 
 data_dir = 'synthetic_data'
-if use_noise:
-    parameters = util.loadmat(os.path.join(data_dir,
-                                                "training_data_triangSNR_"
-                                                "1000000_samples_safe.mat"))
-else:
-    parameters = util.loadmat(os.path.join(data_dir,
-                                                "training_data_"
-                                                "1000000_samples_safe.mat"))  
- 
+use_dictionary = False
+
+if use_dictionary :
+    if use_noise:
+        parameters = util.loadmat(os.path.join(data_dir,
+                                                    "training_data_triangSNR_"
+                                                    "1000000_samples_safe.mat"))
+    else:
+        parameters = util.loadmat(os.path.join(data_dir,
+                                                    "training_data_"
+                                                    "1000000_samples_safe.mat"))  
+else :
+    filename = 'NW1targets' 
+    parameters = pickle.load(open(filename, 'rb'))
+    
+    
 target_params = np.zeros((6, num_sample))
 
 target_params[0,:] = nus[:,0]
@@ -236,7 +242,7 @@ class Net1(nn.Module):
 # %% Building training loop
 
 def train_network1(params1: dict):
-    # Building training loop
+
     num_in = 552
     num_out = num_params
     num_h1 = params1["num_h1"]
@@ -257,10 +263,10 @@ def train_network1(params1: dict):
     print('----------------------- Training --------------------------')
     
     # setting hyperparameters and gettings epoch sizes
-    batch_size = params1["batch_size"] #100 
+    batch_size = params1["batch_size"] 
     num_epochs = params1["num_epochs"] 
     num_samples_train = x_train.shape[0]
-    num_batches_train = num_samples_train // batch_size #??
+    num_batches_train = num_samples_train // batch_size 
     num_samples_valid = x_valid.shape[0]
     num_batches_valid = num_samples_valid // batch_size
     
@@ -348,33 +354,16 @@ def train_network1(params1: dict):
             "meanValError": meanValError
             }
 
-#%%Testing Optimisation
+#%% Training
 
-# trials = Trials()
-# best = fmin(train_network1, params1, algo=tpe.suggest, max_evals=7,trials=trials)
-
-# print(trials.best_trial['result']['loss'])
-
-# n = len(trials.results)
-# tomin = np.zeros(n)
-# to_opti = np.zeros(n)
-# for i in range(n):
-#     tomin[i]= trials.results[i]['loss']
-#     to_opti[i] = trials.results[i]['params']['learning_rate']
-
-# plt.figure()
-# plt.scatter(to_opti, tomin)
-# plt.title('Influence of learning_rate (dropout=0.05, lr=0.001)')
-# plt.grid(b=True, which='major', color='#666666', linestyle='-')
-# plt.minorticks_on()
-# plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-# plt.xlabel('learning_rate'), plt.ylabel('Sum of errors')
-# plt.show()
-
-
-#%% 
- 
+tic = time.time()
 trial = train_network1(params1)  
+toc = time.time()
+
+print("training time:", toc-tic, "[sec]")
+        
+
+#%% Graphs
 
 train_acc = trial['train_acc']
 valid_acc = trial['valid_acc']
@@ -382,34 +371,32 @@ epoch = np.arange(params1['num_epochs'])
 
 mean_train_error = trial['meanTrainError']
 
-# for j in range(6):    
-#     plt.figure()
-#     plt.plot(epoch, train_acc[:, j], 'r', epoch, valid_acc[:, j], 'b')
-#     plt.legend(['Train error','Validation error'])
-#     plt.xlabel('Updates'), plt.ylabel('Error')
-#     plt.show()
+for j in range(6):    
+    plt.figure()
+    plt.plot(epoch, train_acc[:, j], 'r', epoch, valid_acc[:, j], 'b')
+    plt.legend(['Train error','Validation error'])
+    plt.xlabel('Updates'), plt.ylabel('Error')
+    plt.show()
     
-# meanTrainError = trial['meanTrainError']
-# meanValError = trial['meanValError']
+meanTrainError = trial['meanTrainError']
+meanValError = trial['meanValError']
 
-# # Mean Error
-# print(trial['meanTrainError'])
-# plt.figure()
-# plt.plot(epoch, meanTrainError, 'r', epoch, meanValError, 'b')
-# plt.title('Mean Error')
-# plt.grid(b=True, which='major', color='#666666', linestyle='-')
-# plt.minorticks_on()
-# plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-# plt.legend(['Mean Train error','Mean Validation error'])
-# plt.xlabel('Updates'), plt.ylabel('Error')
-# plt.show()
+# Mean Error
+print(trial['meanTrainError'])
+plt.figure()
+plt.plot(epoch, meanTrainError, 'r', epoch, meanValError, 'b')
+plt.title('Learning curve')
+plt.grid(b=True, which='major', color='#666666', linestyle='-')
+plt.minorticks_on()
+plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+plt.legend(['Mean Train error','Mean Validation error'])
+plt.xlabel('Updates'), plt.ylabel('Error')
+plt.show()
 
 
-
-# #%% Comments
+#%% Predictions
 print('----------------------- Prediction --------------------------')
 
-#making prediction
 net = trial['model']
 
 print(x_test.shape)
@@ -432,14 +419,14 @@ target_scaled = scaler1.inverse_transform(target_test)
 error = output - target_scaled
 
 abserror = abs(error)
-#
-##plt.figure()
-##plt.plot(range(len(target_test)), error)
-##plt.xlabel('samples')
-##plt.ylabel('Abs error')
-##plt.show()
 
-#
+# plt.figure()
+# plt.plot(range(len(target_test)), error)
+# plt.xlabel('samples')
+# plt.ylabel('Abs error')
+# plt.show()
+
+
 plt.figure()
 plt.title('distribution of r1 errors for triangular noise')
 plt.hist(abserror[:,1], density=False, bins=30)  # `density=False` would make counts
@@ -449,21 +436,49 @@ plt.grid(b=True, which='major', color='#666666', linestyle='-')
 plt.minorticks_on()
 plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
 plt.show()
-#
+
 print(np.mean(abserror[:,1]))
-#
 
-# #%% 95% interval
 
-# conf_int = np.zeros(num_params)
+#%% 95% interval
 
-# for j in range(num_params):
-#     data = error[:,j]
+conf_int = np.zeros(num_params)
+
+for j in range(num_params):
+    data = error[:,j]
     
-#     mean = np.mean(data)
-#     sigma = np.std(data)
+    mean = np.mean(data)
+    sigma = np.std(data)
     
-#     confint = stats.norm.interval(0.95, loc=mean, 
-#         scale=sigma)
+    confint = stats.norm.interval(0.95, loc=mean, 
+        scale=sigma)
     
-#     print(confint)
+    print(confint)
+
+# %%Testing Optimisation
+
+# trials = Trials()
+# best = fmin(train_network1, params1, algo=tpe.suggest, max_evals=7,trials=trials)
+
+# print(trials.best_trial['result']['loss'])
+
+# n = len(trials.results)
+# tomin = np.zeros(n)
+# to_opti = np.zeros(n)
+# for i in range(n):
+#     tomin[i]= trials.results[i]['loss']
+#     to_opti[i] = trials.results[i]['params']['learning_rate']
+
+# plt.figure()
+# plt.scatter(to_opti, tomin)
+# plt.title('Influence of learning_rate (dropout=0.05, lr=0.001)')
+# plt.grid(b=True, which='major', color='#666666', linestyle='-')
+# plt.minorticks_on()
+# plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+# plt.xlabel('learning_rate'), plt.ylabel('Sum of errors')
+# plt.show()
+
+# filename = 'NW1_trials' 
+# with open(filename, 'wb') as f:
+#         pickle.dump(trials, f)
+#         f.close()

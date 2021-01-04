@@ -6,19 +6,12 @@ Created on Sun Nov 15 11:23:10 2020
 @author: louiseadam
 """
 
-#import matplotlib
 import numpy as np
-#import pandas as pd
 import matplotlib.pyplot as plt
-#import glob
 import os
 import sys
 import pickle
 import time
-
-#from IPython.display import clear_output
-#from skimage.io import imread
-#from skimage.transform import resize
 
 import torch
 import torch.nn as nn
@@ -47,10 +40,9 @@ num_atoms = 782
 num_fasc = 2
 num_params = 6 #nombre de paramètres à estimer: ['nu1', 'r1 ', 'f1 ', 'nu2', 'r2 ', 'f2 ']
 
-
 params = {
     #Training parameters
-    "num_samples": 1000000,
+    "num_samples": 100000,
      "batch_size": 500,  
      "num_epochs": 50,
      
@@ -69,7 +61,6 @@ params = {
      #"learning_rate": hp.uniform("learningrate", 0.0005, 0.01),
      "dropout": 0.3
      #"dropout": hp.uniform("dropout", 0, 0.4)
-     #hp.choice(hsjdkfhs, )
 }
 
 num_samples = params["num_samples"]
@@ -83,6 +74,17 @@ from getDataW import gen_batch_data
 #w_store2, target_params2 = gen_batch_data(0, num_div*2, 'validation')
 
 w_store, target_params = gen_batch_data(0, num_div*4, 'train')
+
+filename = 'dataNW2_w_store'
+with open(filename, 'wb') as f:
+        pickle.dump(w_store, f)
+        f.close()
+
+filename = 'dataNW2_targets' 
+with open(filename, 'wb') as f:
+        pickle.dump(target_params, f)
+        f.close()
+#%%
 w_store1 = w_store[0:num_div*2, :]
 w_store2 = w_store[num_div*2:num_div*4, :]
 target_params1 = target_params[0:num_div*2, :]
@@ -92,14 +94,12 @@ print(target_params1[0, :])
 
 w_reshape = np.zeros((num_samples, num_atoms, num_fasc))
 
-w_re = np.zeros((num_samples, ))
 w_reshape[0:num_div*2, :,0] = w_store1[:, 0:num_atoms]
 w_reshape[0:num_div*2,:,1] = w_store1[:, num_atoms: 2*num_atoms]
 w_reshape[num_div*2:num_samples,:,0] = w_store2[:, 0:num_atoms]
 w_reshape[num_div*2:num_samples,:,1] = w_store2[:, num_atoms: 2*num_atoms]
 
 print(w_reshape.shape)
-
 
 # %% Train data
 
@@ -153,7 +153,6 @@ print(target_train[0, :])
 print('target_train size', target_train.shape)
 print('target_test size', target_test.shape)
 print('target_valid size', target_valid.shape)
-
 
 
 # %% Defining the networks
@@ -248,7 +247,7 @@ class Net_tot(nn.Module):
 
 def train_network(params: dict):
     # Building training loop
-    num_w_out = params["num_w_out"] #??
+    num_w_out = params["num_w_out"] 
     num_w_l1 = params["num_w_l1"]
     num_w_l2 = params["num_w_l2"]
     num_w_in = num_atoms
@@ -275,9 +274,7 @@ def train_network(params: dict):
     # setting hyperparameters and gettings epoch sizes
     batch_size = params["batch_size"] #100 
     num_epochs = params["num_epochs"] #200
-    #print(x_train.shape)
     
-    #shapes = x_train.shape
     num_samples_train = int(num_samples/2)
     num_batches_train = num_samples_train // batch_size #??
     num_samples_valid = int(num_samples/4)
@@ -318,7 +315,6 @@ def train_network(params: dict):
             
             cur_loss += batch_loss   
         losses.append(cur_loss / batch_size)
-        #print(cur_loss / batch_size)
     
         net_tot.eval()
         
@@ -353,8 +349,6 @@ def train_network(params: dict):
             train_acc[epoch, j] = train_acc_cur[j]
             valid_acc[epoch, j] = valid_acc_cur[j]
         
-        #print(train_acc)
-        #print(train_acc)
         meanTrainError.append(np.mean(train_acc[epoch,:]))
         meanValError.append(np.mean(valid_acc[epoch, :]))
         
@@ -377,67 +371,11 @@ def train_network(params: dict):
             "meanValError": meanValError,
             "time": t
             }
-    
-#train_network(params)
 
-
-#%%Testing Optimisation
-
-#trials = Trials()
-#best = fmin(train_network, params, algo=tpe.suggest, max_evals=1, trials=trials)
-
-#print(trials.best_trial['result']['loss'])
-
-#train_acc = trials.best_trial['result']['train_acc']
-
-
-#%% Graph of dropout rate
-
-# # Save Network and load again
-
-# filename = 'network4' 
-# with open(filename, 'wb') as f:
-#         pickle.dump(trials, f)
-#         f.close()
-
-# #trials = pickle.load(open(filename, 'rb'))
-
-# n = len(trials.results)
-# tomin = np.zeros(n)
-# to_opti = np.zeros(n)
-# for i in range(n):
-#     tomin[i]= trials.results[i]['loss']
-#     to_opti[i] = trials.results[i]['params']['num_w_out']
-    
-# print(tomin)
-# print(to_opti)
-
-# #plt.figure()
-# #plt.plot(dropout, tomin, 'b')
-# #plt.title('Optimisation of dropout (lr=0.001)')
-# #plt.grid(b=True, which='major', color='#666666', linestyle='-')
-# #plt.minorticks_on()
-# #plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-# #plt.xlabel('dropout'), plt.ylabel('Sum of errors')
-# #plt.show()
-
-# plt.figure()
-# plt.scatter(to_opti, tomin)
-# plt.title('Influence of number of output of split network (dropout=0.05, lr=0.001)')
-# plt.grid(b=True, which='major', color='#666666', linestyle='-')
-# plt.minorticks_on()
-# plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-# plt.xlabel('nun_w_out'), plt.ylabel('Sum of errors')
-# plt.show()
-
-
-
-#%%
+#%% Training the network 
 
 trial = train_network(params)
 
-#train_acc = trials.best_trial['result']['train_acc']
-#valid_acc = trials.best_trial['result']['valid_acc']
 train_acc = trial['train_acc']
 valid_acc = trial['valid_acc']
 epoch = np.arange(params['num_epochs'])
@@ -454,7 +392,7 @@ for j in range(num_params):
 meanTrainError = trial['meanTrainError']
 meanValError = trial['meanValError']
 
-# Mean Error
+# Mean Error --> Learning curve
 print(trial['meanTrainError'])
 plt.figure()
 plt.plot(epoch, meanTrainError, 'r', epoch, meanValError, 'b')
@@ -467,49 +405,32 @@ plt.xlabel('Updates'), plt.ylabel('Error')
 plt.show()
 
 
-
-#%% Comments
-#print("Last accuracies for 100 000 samples for uniform", valid_acc_cur1, valid_acc_cur2, valid_acc_cur3, valid_acc_cur4, valid_acc_cur5, valid_acc_cur6)
-
-## %% Results
-#
+# %% Predictions (Testing)
 print('----------------------- Prediction --------------------------')
-#
-##making prediction
-#
+
 net_tot = trial['model']
 
-print(x_test.shape)
 output = net_tot(x_test[:,:,0], x_test[:,:,1])
 output = output.detach().numpy()
-
 
 output = scaler_valid.inverse_transform(output)
 target_test = scaler_valid.inverse_transform(target_test)
 
-print(target_test[0, :])
-
-# print(output.shape)
-# print(target_test.shape)
-# print(output[:5])
-# print(target_test[:5])
 error = output - target_test
 
 abserror = abs(error)
-#
-##plt.figure()
-##plt.plot(range(len(target_test)), error)
-##plt.xlabel('samples')
-##plt.ylabel('Abs error')
-##plt.show()
-#
-#plt.figure()
-#plt.hist(abserror[:,0], density=False, bins=30)  # `density=False` would make counts
-#plt.ylabel('Probability')
-#plt.xlabel('Data')
-#plt.show()
-#
-#
+
+plt.figure()
+plt.plot(range(len(target_test)), error)
+plt.xlabel('samples')
+plt.ylabel('Abs error')
+plt.show()
+
+plt.figure()
+plt.hist(abserror[:,0], density=False, bins=30)  # `density=False` would make counts
+plt.ylabel('Probability')
+plt.xlabel('Data')
+plt.show()
 
 #%% obtenir 95% interval
 
@@ -529,20 +450,45 @@ for j in range(num_params):
     print(confint)
 
 
+#%%Testing Optimisation: for this the params dictionnary needs to be changed (at the beginning of the code)
+
+trials = Trials()
+best = fmin(train_network, params, algo=tpe.suggest, max_evals=1, trials=trials)
+
+print(trials.best_trial['result']['loss'])
+
+train_acc = trials.best_trial['result']['train_acc']
+
+## GRAPHS FOR OPTIMISATION
+
+# Save Network and load again
+
+n = len(trials.results)
+tomin = np.zeros(n)
+to_opti = np.zeros(n)
+for i in range(n):
+    tomin[i]= trials.results[i]['loss']
+    to_opti[i] = trials.results[i]['params']['num_w_out']
     
-#
-##%% Save Network and load again
-#
-#filename = 'network2' 
-#with open(filename, 'wb') as f:
-#        pickle.dump(net_tot, f)
-#        f.close()
-#
-#loaded_network = pickle.load(open(filename, 'rb'))
-#
-#print(loaded_network)
+print(tomin)
+print(to_opti)
 
+#plt.figure()
+#plt.plot(dropout, tomin, 'b')
+#plt.title('Optimisation of dropout (lr=0.001)')
+#plt.grid(b=True, which='major', color='#666666', linestyle='-')
+#plt.minorticks_on()
+#plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+#plt.xlabel('dropout'), plt.ylabel('Sum of errors')
+#plt.show()
 
-
+plt.figure()
+plt.scatter(to_opti, tomin)
+plt.title('Influence of number of output of split network (dropout=0.05, lr=0.001)')
+plt.grid(b=True, which='major', color='#666666', linestyle='-')
+plt.minorticks_on()
+plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+plt.xlabel('nun_w_out'), plt.ylabel('Sum of errors')
+plt.show()
 
 
