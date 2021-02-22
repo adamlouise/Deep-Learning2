@@ -42,24 +42,24 @@ from scipy import stats
 
 print('----------------------- Data --------------------------')
 
-use_noise = True
+use_noise = False
 
 num_params = 6
 num_fasc = 2
 M0 = 500
 num_atoms = 782
 
-filename = 'ID_noisy_data_big' 
+filename = 'ID_noisy_data' 
 IDs = pickle.load(open(filename, 'rb'))
 
-filename = 'nus_data_big' 
+filename = 'nus_data' 
 nus = pickle.load(open(filename, 'rb'))
 
 if use_noise:
-    filename = 'dw_noisy_data_big'
+    filename = 'dw_noisy_data'
     data = pickle.load(open(filename, 'rb'))
 else:
-    filename = 'dw_image_data_big'
+    filename = 'dw_image_data'
     data = pickle.load(open(filename, 'rb'))
 
 
@@ -73,7 +73,7 @@ params1 = {
     #Training parameters
     "num_samples": num_sample,
      "batch_size": 250,  
-     "num_epochs": 30,
+     "num_epochs": 150,
      
      #NW2
      "num_h1": 250,
@@ -85,9 +85,9 @@ params1 = {
      #other
      "learning_rate": 0.0005,
      #"learning_rate": hp.choice("learningrate", [0.0005, 0.00075, 0.001, 0.00125, 0.0015, 0.00175, 0.002]),
-     "dropout": 0.2
+     "dropout": 0
+     # "dropout": 0.2
      #"dropout": hp.uniform("dropout", 0, 0.4)
-     #hp.choice(hsjdkfhs, )
 }
 
 
@@ -122,7 +122,7 @@ x_valid = torch.transpose(x_valid, 0, 1)
 print("--- Taking microstructural properties of fascicles ---")
 
 data_dir = 'synthetic_data'
-use_dictionary = False
+use_dictionary = True
 
 if use_dictionary :
     if use_noise:
@@ -257,7 +257,8 @@ def train_network1(params1: dict):
     print(net1)
     
     # Optimizer and Criterion
-    optimizer = optim.Adam(net1.parameters(), lr=params1["learning_rate"], weight_decay=0.0000001)
+    #optimizer = optim.Adam(net1.parameters(), lr=params1["learning_rate"], weight_decay=0.0000001)
+    optimizer = optim.Adam(net1.parameters(), lr=params1["learning_rate"])
     lossf = nn.MSELoss()
 
     print('----------------------- Training --------------------------')
@@ -278,11 +279,18 @@ def train_network1(params1: dict):
     
     cur_loss = 0
     losses = []
+    times = []
+    
+    start_time = time.time()
     
     # lambda function
     get_slice = lambda i, size: range(i * size, (i + 1) * size)
     
     for epoch in range(num_epochs):
+        
+        t = time.time() - start_time
+        times.append(t)
+        
         # Forward -> Backprob -> Update params
         ## Train
         cur_loss = 0
@@ -341,6 +349,8 @@ def train_network1(params1: dict):
         if epoch % 10 == 0:
             print("Epoch %2i : Train Loss %f , Train acc %f, Valid acc %f, " %(
                     epoch+1, losses[-1], meanTrainError[-1], meanValError[-1]))
+            
+            print('time:', t)
         
     to_min = sum(valid_acc_cur)
       
@@ -351,7 +361,8 @@ def train_network1(params1: dict):
             "train_acc": train_acc,
             "valid_acc": valid_acc,
             "meanTrainError": meanTrainError,
-            "meanValError": meanValError
+            "meanValError": meanValError,
+            "times": times
             }
 
 #%% Training
@@ -361,7 +372,18 @@ trial = train_network1(params1)
 toc = time.time()
 
 print("training time:", toc-tic, "[sec]")
-        
+
+#%% Graph time vs error
+
+plt.figure()
+plt.plot(trial['times'],trial['meanValError'])
+plt.title('Time vs error - Network 1 - No Noise')
+plt.ylabel('mean absolute error')
+plt.xlabel('computation time [s]')
+plt.grid(b=True, which='major', color='#666666', linestyle='-')
+plt.minorticks_on()
+plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+plt.show()        
 
 #%% Graphs
 
@@ -382,7 +404,6 @@ meanTrainError = trial['meanTrainError']
 meanValError = trial['meanValError']
 
 # Mean Error
-print(trial['meanTrainError'])
 plt.figure()
 plt.plot(epoch, meanTrainError, 'r', epoch, meanValError, 'b')
 plt.title('Learning curve')
