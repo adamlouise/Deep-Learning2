@@ -1,3 +1,7 @@
+louise_data/
+real_data/
+dataNW2/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

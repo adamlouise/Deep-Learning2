@@ -23,10 +23,10 @@ from torch.nn.parameter import Parameter
 
 from sklearn.preprocessing import StandardScaler
 
-path_to_utils = os.path.join('.', 'python_functions')
-path_to_utils = os.path.abspath(path_to_utils)
-if path_to_utils not in sys.path:
-    sys.path.insert(0, path_to_utils)
+#path_to_utils = os.path.join('.', 'python_functions')
+#path_to_utils = os.path.abspath(path_to_utils)
+#if path_to_utils not in sys.path:
+#    sys.path.insert(0, path_to_utils)
 
 import mf_utils as util
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
@@ -39,16 +39,19 @@ from sklearn.metrics import mean_absolute_error
 num_atoms = 782
 num_fasc = 2
 num_params = 6 #nombre de paramètres à estimer: ['nu1', 'r1 ', 'f1 ', 'nu2', 'r2 ', 'f2 ']
+new_gen = True
+nouvel_enregist = False
+via_pickle = False
 
 params = {
     #Training parameters
-    "num_samples": 100000,
-     "batch_size": 500,  
-     "num_epochs": 50,
+    "num_samples": 500000,
+     "batch_size": 1000,  
+     "num_epochs": 40,
      
      #NW1 parameters
      #"num_w_out": hp.choice("num_w_out", [3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30] ),
-     "num_w_out": 12,
+     "num_w_out": 100,
      "num_w_l1": 500,
      "num_w_l2": 50,
      
@@ -57,33 +60,48 @@ params = {
      "num_f_l2": 100,
      
      #other
-     "learning_rate": 0.001,
+     "learning_rate": 0.001, 
      #"learning_rate": hp.uniform("learningrate", 0.0005, 0.01),
-     "dropout": 0.3
+     "dropout": 0.1
      #"dropout": hp.uniform("dropout", 0, 0.4)
 }
 
 num_samples = params["num_samples"]
 num_div = int(num_samples/4)
 
-# %% Data
+# %% Data via pickle files
 
-from getDataW import gen_batch_data
+print('Aller c est partii')
+filename1 = 'dataNW2/dataNW2_w_store'
+filename2 = 'dataNW2/dataNW2_targets' 
 
-#w_store1, target_params1 = gen_batch_data(0, num_div*2, 'train')
-#w_store2, target_params2 = gen_batch_data(0, num_div*2, 'validation')
+if new_gen:
+    
+    print("on load avec gen_batch_data")
+    
+    from getDataW import gen_batch_data
 
-w_store, target_params = gen_batch_data(0, num_div*4, 'train')
+    #w_store1, target_params1 = gen_batch_data(0, num_div*2, 'train')
+    #w_store2, target_params2 = gen_batch_data(0, num_div*2, 'validation')
 
-filename = 'dataNW2_w_store'
-with open(filename, 'wb') as f:
-        pickle.dump(w_store, f)
-        f.close()
+    w_store, target_params = gen_batch_data(0, num_div*4, 'train')
+    print(w_store.shape, target_params.shape)
+    
+    if nouvel_enregist:
+        print('et on enregistre :-) ')
+        with open(filename1, 'wb') as f:
+                pickle.dump(w_store, f)
+                f.close()
+        with open(filename2, 'wb') as f:
+                pickle.dump(target_params, f)
+                f.close()
 
-filename = 'dataNW2_targets' 
-with open(filename, 'wb') as f:
-        pickle.dump(target_params, f)
-        f.close()
+if via_pickle:   
+    print("on load via les fichiers pickle :-) ")     
+    w_store = pickle.load(open(filename1, 'rb'))
+    target_params = pickle.load(open(filename2, 'rb'))    
+
+
 #%%
 w_store1 = w_store[0:num_div*2, :]
 w_store2 = w_store[num_div*2:num_div*4, :]
