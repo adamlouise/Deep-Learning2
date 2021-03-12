@@ -1,6 +1,9 @@
 louise_data/
 real_data/
 dataNW2/
+python_functions/
+synthetic_data/
+hcp_mgh_1003.scheme1
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -23,10 +23,10 @@ from torch.nn.parameter import Parameter
 
 from sklearn.preprocessing import StandardScaler
 
-#path_to_utils = os.path.join('.', 'python_functions')
-#path_to_utils = os.path.abspath(path_to_utils)
-#if path_to_utils not in sys.path:
-#    sys.path.insert(0, path_to_utils)
+path_to_utils = os.path.join('.', 'python_functions')
+path_to_utils = os.path.abspath(path_to_utils)
+if path_to_utils not in sys.path:
+    sys.path.insert(0, path_to_utils)
 
 import mf_utils as util
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
@@ -39,9 +39,9 @@ from sklearn.metrics import mean_absolute_error
 num_atoms = 782
 num_fasc = 2
 num_params = 6 #nombre de paramètres à estimer: ['nu1', 'r1 ', 'f1 ', 'nu2', 'r2 ', 'f2 ']
-new_gen = True
+new_gen = False
 nouvel_enregist = False
-via_pickle = False
+via_pickle = True
 
 params = {
     #Training parameters
