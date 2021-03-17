@@ -23,18 +23,17 @@ from torch.nn.parameter import Parameter
 
 from sklearn.preprocessing import StandardScaler
 
-path_to_utils = os.path.join('.', 'python_functions')
-path_to_utils = os.path.abspath(path_to_utils)
-if path_to_utils not in sys.path:
-    sys.path.insert(0, path_to_utils)
+#path_to_utils = os.path.join('.', 'python_functions')
+#path_to_utils = os.path.abspath(path_to_utils)
+#if path_to_utils not in sys.path:
+#    sys.path.insert(0, path_to_utils)
 
-import mf_utils as util
+#import mf_utils as util
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from scipy import stats
 
 from sklearn.metrics import mean_absolute_error
 
-print('OK tout est loaded :-) ')
 #%% Basic parameters
 
 num_atoms = 782
@@ -46,24 +45,27 @@ via_pickle = True
 
 params = {
     #Training parameters
-    "num_samples": 800000,
-     "batch_size": 8000,  
+    "num_samples": 1000000,
+     "batch_size": 10000,  
      "num_epochs": 30,
      
      #NW1 parameters
      #"num_w_out": hp.choice("num_w_out", [3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30] ),
-     "num_w_out": 100,
-     "num_w_l1": 500,
-     "num_w_l2": 50,
+     "num_w_out": 50,
+     "num_w_l1": 200,
+     "num_w_l2": 600,
+     "num_w_l3": 200,
+     "num_w_l4": 50,
      
      #NW2
      "num_f_l1": 300,
-     "num_f_l2": 100,
+     "num_f_l2": 200,
+     "num_f_l3": 100,
      
      #other
      "learning_rate": 0.001, 
      #"learning_rate": hp.uniform("learningrate", 0.0005, 0.01),
-     "dropout": 0
+     "dropout": 0.1
      #"dropout": hp.uniform("dropout", 0, 0.4)
 }
 
@@ -101,7 +103,6 @@ if via_pickle:
     print("on load via les fichiers pickle :-) ")     
     w_store = pickle.load(open(filename1, 'rb'))
     target_params = pickle.load(open(filename2, 'rb'))    
-
 
 #%%
 w_store1 = w_store[0:num_div*2, :]
@@ -180,7 +181,7 @@ print('target_valid size', target_valid.shape)
 
 class Net_w(nn.Module):
 
-    def __init__(self, num_in, num_h1, num_h2, num_out, drop_prob):
+    def __init__(self, num_in, num_h1, num_h2, num_h3, num_out, drop_prob):
         super(Net_w, self).__init__()  
         # input layer
         self.W_1 = Parameter(init.kaiming_uniform_(torch.Tensor(num_h1, num_in)))
@@ -190,8 +191,11 @@ class Net_w(nn.Module):
         self.W_2 = Parameter(init.kaiming_uniform_(torch.Tensor(num_h2, num_h1)))
         self.b_2 = Parameter(init.constant_(torch.Tensor(num_h2), 0))
         
-        self.W_3 = Parameter(init.kaiming_uniform_(torch.Tensor(num_out, num_h2)))
-        self.b_3 = Parameter(init.constant_(torch.Tensor(num_out), 0))
+        self.W_3 = Parameter(init.kaiming_uniform_(torch.Tensor(num_h3, num_h2)))
+        self.b_3 = Parameter(init.constant_(torch.Tensor(num_h3), 0))
+        
+        self.W_4 = Parameter(init.kaiming_uniform_(torch.Tensor(num_out, num_h3)))
+        self.b_4 = Parameter(init.constant_(torch.Tensor(num_out), 0))
         
         self.activation = torch.nn.ReLU()
         
@@ -208,6 +212,10 @@ class Net_w(nn.Module):
         x = self.dropout(x)
         
         x = F.linear(x, self.W_3, self.b_3)
+        x = self.activation(x)
+        x = self.dropout(x)
+        
+        x = F.linear(x, self.W_4, self.b_4)
 
         return x
 
@@ -247,9 +255,9 @@ class Net_f(nn.Module):
 # Network 3
 class Net_tot(nn.Module):
 
-    def __init__(self, numw_in, numw_l1, numw_l2, numw_out, numf_in, numf_l1, numf_l2, numf_out, drop):
+    def __init__(self, numw_in, numw_l1, numw_l2, numw_l3, numw_out, numf_in, numf_l1, numf_l2, numf_out, drop):
         super(Net_tot, self).__init__()  
-        self.netw = Net_w(numw_in, numw_l1, numw_l2, numw_out, drop_prob=drop)
+        self.netw = Net_w(numw_in, numw_l1, numw_l2, numw_l3, numw_out, drop_prob=drop)
         self.netf = Net_f(numf_in, numf_l1, numf_l2, numf_out, drop_prob=drop)
 
     def forward(self, w1, w2):
@@ -269,6 +277,7 @@ def train_network(params: dict):
     num_w_out = params["num_w_out"] 
     num_w_l1 = params["num_w_l1"]
     num_w_l2 = params["num_w_l2"]
+    num_w_l3 = params["num_w_l3"]
     num_w_in = num_atoms
     num_f_out = num_params #nombre de paramètres à estimer
     num_f_l1 = params["num_f_l1"]
@@ -276,13 +285,14 @@ def train_network(params: dict):
     num_f_in = num_w_out*num_fasc #ici 10*2
     drop = params["dropout"]
     
-    net_tot = Net_tot(num_w_in, num_w_l1, num_w_l2, num_w_out, num_f_in, num_f_l1, num_f_l2, num_f_out, drop)
+    net_tot = Net_tot(num_w_in, num_w_l1, num_w_l2, num_w_l3, num_w_out, num_f_in, num_f_l1, num_f_l2, num_f_out, drop)
     
     print(net_tot)
     
     # Optimizer and Criterion
     
-    optimizer = optim.Adam(net_tot.parameters(), lr=params["learning_rate"], weight_decay=0.0000001)
+    #optimizer = optim.Adam(net_tot.parameters(), lr=params["learning_rate"], weight_decay=0.0000001)
+    optimizer = optim.Adam(net_tot.parameters(), lr=params["learning_rate"])
     lossf = nn.MSELoss()
     
     
@@ -319,7 +329,6 @@ def train_network(params: dict):
         cur_loss = 0
         net_tot.train()
         
-        print('debut epoch', epoch)
         for i in range(num_batches_train):
             
             optimizer.zero_grad()
@@ -338,7 +347,6 @@ def train_network(params: dict):
     
         net_tot.eval()
         
-        print('eval epoch', epoch)
         ### Evaluate training
         train_preds = [[], [], [], [], [], []]
         train_targs = [[], [], [], [], [], []]
@@ -375,7 +383,7 @@ def train_network(params: dict):
         
         #if epoch % 10 == 0:
         print("Epoch %2i : Train Loss %f , Train acc %f, Valid acc %f, " %(
-            epoch, losses[-1], meanTrainError[-1], meanValError[-1]))
+            epoch+1, losses[-1], meanTrainError[-1], meanValError[-1]))
         
     to_min = sum(valid_acc_cur)
     
@@ -395,9 +403,13 @@ def train_network(params: dict):
 
 #%% Training the network 
 
+tic = time.time()
+
 trial = train_network(params)
 
-print('training time:', trial['time'])
+toc = time.time()
+train_time = toc - tic
+print("training time: ", train_time)
 
 train_acc = trial['train_acc']
 valid_acc = trial['valid_acc']
@@ -419,7 +431,7 @@ meanValError = trial['meanValError']
 print(trial['meanTrainError'])
 plt.figure()
 plt.plot(epoch, meanTrainError, 'r', epoch, meanValError, 'b')
-plt.title('Mean Error')
+plt.title('Learning Curve: Mean Error - DL after NNLS')
 plt.grid(b=True, which='major', color='#666666', linestyle='-')
 plt.minorticks_on()
 plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
@@ -433,21 +445,32 @@ print('----------------------- Prediction --------------------------')
 
 net_tot = trial['model']
 
+# predict and time
+tic = time.time()
 output = net_tot(x_test[:,:,0], x_test[:,:,1])
 output = output.detach().numpy()
+toc = time.time()
+predic_time = toc - tic
+print("prediction time: ", predic_time)
 
+# mean absolute scaled error for 6 properties
+mean_err_scaled = np.zeros(6)
+for i in range(6):
+    mean_err_scaled[i] = mean_absolute_error(output[:,i], target_test[:,i])
+
+print("mean_abs_err", mean_err_scaled)
+
+properties = ['nu1', 'r1', 'f1', 'nu2', 'r2', 'f2']
+plt.figure()
+plt.bar(properties, mean_err_scaled)
+
+# descale
 output = scaler_valid.inverse_transform(output)
 target_test = scaler_valid.inverse_transform(target_test)
 
 error = output - target_test
 
 abserror = abs(error)
-
-plt.figure()
-plt.plot(range(len(target_test)), error)
-plt.xlabel('samples')
-plt.ylabel('Abs error')
-plt.show()
 
 plt.figure()
 plt.hist(abserror[:,0], density=False, bins=30)  # `density=False` would make counts
@@ -475,43 +498,41 @@ for j in range(num_params):
 
 #%%Testing Optimisation: for this the params dictionnary needs to be changed (at the beginning of the code)
 
-trials = Trials()
-best = fmin(train_network, params, algo=tpe.suggest, max_evals=1, trials=trials)
+# trials = Trials()
+# best = fmin(train_network, params, algo=tpe.suggest, max_evals=1, trials=trials)
 
-print(trials.best_trial['result']['loss'])
+# print(trials.best_trial['result']['loss'])
 
-train_acc = trials.best_trial['result']['train_acc']
+# train_acc = trials.best_trial['result']['train_acc']
 
-## GRAPHS FOR OPTIMISATION
+# ## GRAPHS FOR OPTIMISATION
 
-# Save Network and load again
+# # Save Network and load again
 
-n = len(trials.results)
-tomin = np.zeros(n)
-to_opti = np.zeros(n)
-for i in range(n):
-    tomin[i]= trials.results[i]['loss']
-    to_opti[i] = trials.results[i]['params']['num_w_out']
+# n = len(trials.results)
+# tomin = np.zeros(n)
+# to_opti = np.zeros(n)
+# for i in range(n):
+#     tomin[i]= trials.results[i]['loss']
+#     to_opti[i] = trials.results[i]['params']['num_w_out']
     
-print(tomin)
-print(to_opti)
+# print(tomin)
+# print(to_opti)
 
-#plt.figure()
-#plt.plot(dropout, tomin, 'b')
-#plt.title('Optimisation of dropout (lr=0.001)')
-#plt.grid(b=True, which='major', color='#666666', linestyle='-')
-#plt.minorticks_on()
-#plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-#plt.xlabel('dropout'), plt.ylabel('Sum of errors')
-#plt.show()
+# #plt.figure()
+# #plt.plot(dropout, tomin, 'b')
+# #plt.title('Optimisation of dropout (lr=0.001)')
+# #plt.grid(b=True, which='major', color='#666666', linestyle='-')
+# #plt.minorticks_on()
+# #plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+# #plt.xlabel('dropout'), plt.ylabel('Sum of errors')
+# #plt.show()
 
-plt.figure()
-plt.scatter(to_opti, tomin)
-plt.title('Influence of number of output of split network (dropout=0.05, lr=0.001)')
-plt.grid(b=True, which='major', color='#666666', linestyle='-')
-plt.minorticks_on()
-plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-plt.xlabel('nun_w_out'), plt.ylabel('Sum of errors')
-plt.show()
-
-
+# plt.figure()
+# plt.scatter(to_opti, tomin)
+# plt.title('Influence of number of output of split network (dropout=0.05, lr=0.001)')
+# plt.grid(b=True, which='major', color='#666666', linestyle='-')
+# plt.minorticks_on()
+# plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+# plt.xlabel('nun_w_out'), plt.ylabel('Sum of errors')
+# plt.show()

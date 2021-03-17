@@ -5,7 +5,7 @@ import numpy as np
 import os
 import torch
 
-import mf_utils as util
+#import mf_utils as util
 
 num_fasc = 2
 
@@ -17,7 +17,7 @@ sum_to_one = False
 remove_mean = True
 unit_variance = True
 center_target = True
-SNR_dist = 'uniform'  # 'uniform' or 'triangular'
+SNR_dist = 'data_lou_version1'  # 'uniform' or 'triangular' or 'data_lou_version1'
 
 normalisation = False
 
@@ -58,6 +58,12 @@ elif SNR_dist == 'triangular':
     validation_data = util.loadmat(os.path.join('synthetic_data',
                                                 "training_data_"
                                                 "1000000_samples_safe.mat"))
+elif SNR_dist == 'data_lou_version1':
+    nnls_output = util.loadmat(os.path.join('synthetic_data',
+                                            "training_data_"
+                                            "1000000_samples_lou_version1"))
+    validation_data = nnls_output
+
 
 # Substrate (=fingerprint) properties
 sub_rads = nnls_output['subinfo']['rad']  # Python list
