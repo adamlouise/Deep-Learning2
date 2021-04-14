@@ -63,14 +63,16 @@ params = {
      "num_f_l3": 100,
      
      #other
-     "learning_rate": 0.001, 
+     "learning_rate": 0.002, 
      #"learning_rate": hp.uniform("learningrate", 0.0005, 0.01),
-     "dropout": 0.1
+     "dropout": 0.05
      #"dropout": hp.uniform("dropout", 0, 0.4)
 }
 
 num_samples = params["num_samples"]
 num_div = int(num_samples/4)
+
+print('OK')
 
 # %% Data via pickle files
 

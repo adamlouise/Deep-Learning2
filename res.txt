@@ -1,0 +1,16 @@
+Lmod has detected the following error: The following module(s) are unknown:
+"numba/0.37.0-intel-2018a-Python-3.6.4"
+
+Please check the spelling or version number. Also try "module spider ..."
+It is also possible your cache file is out-of-date; it may help to try:
+  $ module --ignore-cache load "numba/0.37.0-intel-2018a-Python-3.6.4"
+
+Also make sure that all modulefiles written in TCL start with the string
+#%Module
+
+If you don't understand the warning or error, contact the helpdesk at
+egs-cism@listes.uclouvain.be 
+
+
+srun: error: lm3-w080: task 0: Exited with exit code 13
+slurmstepd: error: execve(): Network2.py: Permission denied
