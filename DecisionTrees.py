@@ -42,17 +42,17 @@ num_fasc = 2
 M0 = 500
 num_atoms = 782
 
-filename = 'data/ID_noisy_data_lownoise' 
+filename = 'data_y/ID_noisy_data_lownoise' 
 IDs = pickle.load(open(filename, 'rb'))
 
-filename = 'data/nus_data_lownoise' 
+filename = 'data_y/nus_data_lownoise' 
 nus = pickle.load(open(filename, 'rb'))
 
 if use_noise:
-    filename = 'data/dw_noisy_data_lownoise'
+    filename = 'data_y/dw_noisy_data_lownoise'
     data = pickle.load(open(filename, 'rb'))
 else:
-    filename = 'data/dw_image_data_lownoise'
+    filename = 'data_y/dw_image_data_lownoise'
     data = pickle.load(open(filename, 'rb'))
 
 #%%
